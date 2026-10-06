@@ -62,6 +62,11 @@ module.exports = (env, argv) => {
       globalObject: 'this || self',
     },
     resolve: {
+      // @bobjoy/vconsole-protocol is a private workspace package that never gets
+      // published, so it is inlined here instead of being a real dependency
+      alias: {
+        '@bobjoy/vconsole-protocol': Path.resolve(__dirname, '../protocol/src/protocol.ts'),
+      },
       extensions: ['.ts', '.js', '.html', '.less', '.mjs', '.svelte'],
       mainFields: ['browser', 'module', 'main'],
       conditionNames: ['svelte', 'browser', 'import', 'require'],

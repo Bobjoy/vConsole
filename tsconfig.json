@@ -12,7 +12,8 @@
 		"verbatimModuleSyntax": true,
 		"baseUrl": ".",
 		"paths": {
-			"src/*": ["src/*"]
+			"src/*": ["src/*"],
+			"@bobjoy/vconsole-protocol": ["../protocol/src/protocol.ts"]
 		},
 	},
   "include": ["src/**/*"],

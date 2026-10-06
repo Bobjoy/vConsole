@@ -1,11 +1,12 @@
 {
-  "name": "vconsole",
-  "version": "3.16.0-alpha",
-  "description": "A lightweight, extendable front-end developer tool for mobile web page.",
-  "homepage": "https://github.com/Tencent/vConsole",
+  "name": "@bobjoy/vconsole",
+  "version": "3.16.0",
+  "description": "Fork of Tencent vConsole (dev branch, 3.16.0-alpha) with a WebSocket bridge that streams logs/network data to an MCP server for AI agents. Upstream: https://github.com/Tencent/vConsole",
   "files": [
     "dist/*",
+    "!dist/*.tsbuildinfo",
     "build/vendor.d.ts",
+    "LICENSE",
     "CHANGELOG*",
     "README*"
   ],
@@ -29,11 +30,14 @@
   "keywords": [
     "console",
     "debug",
-    "mobile"
+    "mobile",
+    "mcp",
+    "ai-agent",
+    "vconsole"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Tencent/vConsole.git"
+    "url": "git+https://github.com/Bobjoy/vConsole.git"
   },
   "dependencies": {
     "@babel/runtime": "^7.17.2",
@@ -55,12 +59,17 @@
     "svelte": "^5.53.10",
     "svelte-loader": "^3.2.4",
     "svelte-preprocess": "^6.0.3",
+    "terser-webpack-plugin": "^5.3.10",
     "typescript": "^5.9.3",
     "webpack": "^5.72.0",
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.3",
     "webpack-merge": "^6.0.1"
   },
-  "author": "Tencent",
-  "license": "MIT"
+  "author": "Tencent (original vConsole); fork maintained by bobjoy",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
 }

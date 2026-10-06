@@ -37,6 +37,7 @@ export class VConsoleNetworkRequestItem {
   actived: boolean          = false;
   noVConsole?: boolean      = false;
   transferSize?: number     = undefined; // bytes transferred over the network; 0 means served from cache
+  replayedFrom?: string     = undefined; // id of the request this one was replayed from
 
   constructor() {
     this.id = getUniqueID();

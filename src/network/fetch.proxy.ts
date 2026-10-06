@@ -1,5 +1,6 @@
 import * as tool from '../lib/tool';
 import * as Helper from './helper';
+import { takeReplayMark } from '../mcp/replayStamp';
 import { VConsoleNetworkRequestItem } from './requestItem';
 import type { VConsoleRequestMethod } from './requestItem';
 import type { IOnUpdateCallback } from './helper';
@@ -168,6 +169,14 @@ export class FetchProxyHandler<T extends typeof fetch> implements ProxyHandler<T
       item.startTime = Date.now();
       const sd = tool.getDate(item.startTime);
       item.startTimeText = `${sd.year}-${sd.month}-${sd.day} ${sd.hour}:${sd.minute}:${sd.second}.${sd.millisecond}`;
+    }
+
+    // a replayed request marks itself right before calling `fetch`, so this
+    // synchronous read can only belong to that request
+    const replayMark = takeReplayMark();
+    if (replayMark) {
+      item.replayedFrom = replayMark.sourceId;
+      replayMark.newItemId = item.id;
     }
 
     if (Object.prototype.toString.call(requestHeader) === '[object Headers]') {

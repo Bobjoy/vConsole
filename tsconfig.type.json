@@ -6,7 +6,9 @@
     "outFile": "dist/vconsole.min.d.ts",
     "outDir": "./dist",
     "baseUrl": "./src",
-    "rootDir": "./src",
+    "paths": {
+      "@bobjoy/vconsole-protocol": ["../build/protocol-ambient.d.ts"]
+    },
     "moduleResolution": "node",
     "allowJs": true,
     "target": "es2018",

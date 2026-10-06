@@ -1,5 +1,6 @@
 import { getDate } from '../lib/tool';
 import { VConsoleNetworkRequestItem, VConsoleWebSocketMessage } from './requestItem';
+import { encodeWsData } from './wsCodec';
 import type { IOnUpdateCallback } from './helper';
 
 export class WebSocketProxyHandler<T extends WebSocket> implements ProxyHandler<T> {
@@ -57,14 +58,22 @@ export class WebSocketProxyHandler<T extends WebSocket> implements ProxyHandler<
   protected addMessage(type: 'send' | 'receive', data: any) {
     const time = Date.now();
     const sd = getDate(time);
+    const encoded = encodeWsData(data);
     const msg: VConsoleWebSocketMessage = {
       type,
-      data,
+      data: encoded.value,
       time,
       timeText: `${sd.hour}:${sd.minute}:${sd.second}.${sd.millisecond}`,
     };
     this.item.messages.push(msg);
     this.triggerUpdate();
+    if (encoded.fill) {
+      // Blob bytes land later; the hub refreshes the frame it already recorded
+      encoded.fill((value: string) => {
+        msg.data = value;
+        this.triggerUpdate();
+      });
+    }
   }
 
   protected onOpen() {

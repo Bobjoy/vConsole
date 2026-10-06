@@ -38,6 +38,9 @@ import { VConsoleStoragePlugin } from '../storage/storage';
 import { VConsoleLogExporter } from '../log/log.exporter';
 import { VConsoleNetworkExporter } from '../network/network.exporter';
 
+// MCP bridge (fork addition)
+import { initMcpBridge } from '../mcp/bridge';
+
 const VCONSOLE_ID = '#__vconsole';
 
 export class VConsole {
@@ -100,6 +103,18 @@ export class VConsole {
 
     // add built-in plugins
     this._addBuiltInPlugins();
+
+    // start the MCP bridge as early as possible so it catches all data (fork addition)
+    const { serverUrl } = this.option;
+    if (serverUrl) {
+      initMcpBridge(this, {
+        serverUrl,
+        deviceName: this.option.deviceName,
+        autoConnect: this.option.autoConnect,
+        hideUI: this.option.hideUI,
+        maxBuffer: this.option.maxBuffer,
+      });
+    }
 
     // try to init
     this._onloadCallback = () => {

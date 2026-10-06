@@ -22,6 +22,7 @@ import { VConsole } from './core/core';
 
 // export types
 export type { VConsoleOptions, VConsoleLogOptions, VConsoleNetworkOptions, VConsoleStorageOptions, VConsoleAvailableStorage } from './core/options.interface';
+export type { VConsoleMcpOptions } from '@bobjoy/vconsole-protocol';
 
 // export
 export default VConsole;

@@ -138,12 +138,16 @@ export class VConsoleLogModel extends VConsoleModel {
 
   protected _mockConsoleLog() {
     this.LOG_METHODS.map((method) => {
-      window.console[method] = ((...args) => {
+      const mocked = ((...args) => {
         this.addLog({
           type: method,
           origData: args || [],
         });
       }).bind(window.console);
+      // fork addition: mark the mock so the MCP bridge can detect when a
+      // third-party SDK rewraps `console` after vConsole and re-apply it
+      (<any>mocked).__vcmMock = true;
+      window.console[method] = mocked;
     });
   }
 
