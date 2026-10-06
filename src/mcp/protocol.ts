@@ -5,10 +5,11 @@
  * Transport: JSON text frames over a single WebSocket connection.
  * The probe is the connecting side; the server listens.
  *
- * This is the PROBE-SIDE copy. The node side keeps its own copy at
- * vconsole-mcp/packages/protocol/src/protocol.ts, and the two are kept in step
- * by hand: changing the protocol means changing BOTH in the same round
- * (ADR-0007). PROTOCOL_VERSION is the only handshake between them, and a hub
+ * This file exists twice, on purpose: the node side keeps it at
+ * vconsole-mcp/packages/protocol/src/protocol.ts, the probe side at
+ * vConsole/src/mcp/protocol.ts. Nothing checks them against each other, so
+ * changing the protocol means editing BOTH in the same round (ADR-0007).
+ * PROTOCOL_VERSION is the only handshake between the two copies, and a hub
  * that sees a different number warns instead of disconnecting (ADR-0008).
  */
 
