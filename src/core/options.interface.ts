@@ -27,7 +27,7 @@ export interface VConsoleOptions {
 
   /**
    * MCP bridge (fork addition): the WebSocket endpoint of the MCP server,
-   * e.g. ws://192.168.1.10:9528. When set, the probe streams logs/network
+   * e.g. ws://192.168.x.x:9528. When set, the probe streams logs/network
    * data to the server and accepts commands from AI agents.
    */
   serverUrl?: string,

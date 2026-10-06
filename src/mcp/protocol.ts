@@ -278,7 +278,7 @@ export type ServerMessage = CmdMsg | PingMsg | KickMsg;
 // ---------------------------------------------------------------------------
 
 export interface VConsoleMcpOptions {
-  /** WebSocket endpoint of the MCP server, e.g. ws://192.168.1.10:9528 */
+  /** WebSocket endpoint of the MCP server, e.g. ws://192.168.x.x:9528 */
   serverUrl: string;
   /** optional human-readable label, e.g. "iPhone 15 测试机" */
   deviceName?: string;
