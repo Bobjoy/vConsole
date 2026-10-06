@@ -1,6 +1,6 @@
 dist
 typings
-# generated from ../protocol/src/protocol.ts by build/build.typings.js
+# generated from src/mcp/protocol.ts by build/build.typings.js
 build/protocol-ambient.d.ts
 
 # Logs

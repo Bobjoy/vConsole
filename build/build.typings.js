@@ -3,19 +3,19 @@ const path = require('path');
 const { execSync } = require('child_process');
 const vendorConfig = require('./vendor.json');
 
-// ../protocol holds the single protocol source that webpack inlines into this
-// bundle. It is not an installed package, so the typings build needs it as a
-// declaration file: the ambient module block below is generated from the source,
-// written to ./protocol-ambient.d.ts (git-ignored, resolved via tsconfig paths)
-// before tsc runs, and spliced back into the emitted typings — otherwise
-// @bobjoy/vconsole's types would name a package that is never published.
+// src/mcp/protocol.ts is the protocol source webpack inlines into this bundle.
+// It is not an installed package, so the typings build needs it as a declaration
+// file: the ambient module block below is generated from the source, written to
+// ./protocol-ambient.d.ts (git-ignored, resolved via tsconfig paths) before tsc
+// runs, and spliced back into the emitted typings — otherwise @bobjoy/vconsole's
+// types would name a package that is never published.
 const PROTOCOL_MODULE = '@bobjoy/vconsole-protocol';
 const AMBIENT_FILE = path.resolve(__dirname, 'protocol-ambient.d.ts');
 
 const protocolDeclarations = () => {
-  const source = path.resolve(__dirname, '../../protocol/src/protocol.ts');
+  const source = path.resolve(__dirname, '../src/mcp/protocol.ts');
   const tmpDir = path.resolve(__dirname, '../dist/.protocol');
-  execSync(`tsc ${JSON.stringify(source)} --target es2018 --declaration --emitDeclarationOnly --outDir ${JSON.stringify(tmpDir)}`);
+  execSync(`tsc ${JSON.stringify(source)} --target es2018 --declaration --emitDeclarationOnly --skipLibCheck --outDir ${JSON.stringify(tmpDir)}`);
   const dts = fs.readFileSync(path.join(tmpDir, 'protocol.d.ts'), 'utf8');
   fs.rmSync(tmpDir, { recursive: true, force: true });
   // `export declare const` is invalid once nested inside a declare module block

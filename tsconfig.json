@@ -13,7 +13,7 @@
 		"baseUrl": ".",
 		"paths": {
 			"src/*": ["src/*"],
-			"@bobjoy/vconsole-protocol": ["../protocol/src/protocol.ts"]
+			"@bobjoy/vconsole-protocol": ["src/mcp/protocol.ts"]
 		},
 	},
   "include": ["src/**/*"],

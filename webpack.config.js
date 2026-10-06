@@ -62,10 +62,10 @@ module.exports = (env, argv) => {
       globalObject: 'this || self',
     },
     resolve: {
-      // @bobjoy/vconsole-protocol is a private workspace package that never gets
-      // published, so it is inlined here instead of being a real dependency
+      // the protocol is a local copy, not an installed package: the node side has
+      // its own copy in the whistle-vconsole repo, and webpack inlines this one
       alias: {
-        '@bobjoy/vconsole-protocol': Path.resolve(__dirname, '../protocol/src/protocol.ts'),
+        '@bobjoy/vconsole-protocol': Path.resolve(__dirname, 'src/mcp/protocol.ts'),
       },
       extensions: ['.ts', '.js', '.html', '.less', '.mjs', '.svelte'],
       mainFields: ['browser', 'module', 'main'],
