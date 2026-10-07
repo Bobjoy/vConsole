@@ -114,20 +114,25 @@ export class VConsoleNetworkModel extends VConsoleModel {
     if (!window.hasOwnProperty('fetch')) {
       return;
     }
-    const descriptor = Object.getOwnPropertyDescriptor(window, 'fetch');
-    if (descriptor && !descriptor.set && !descriptor.writable) {
-      // fetch is defined as a getter-only property by a third-party library; skip mocking
-      return;
-    }
-    window.fetch = FetchProxy.create((item: VConsoleNetworkRequestItem) => {
+    const callback = (item: VConsoleNetworkRequestItem) => {
       this.updateRequest(item.id, item);
-    });
-    // an app-injected APM SDK can reassign window.fetch after us with a wrapper
-    // that calls its privately saved native fetch — requests keep working but
-    // silently bypass our capture. Watch for that and re-wrap the current
-    // window.fetch (one reference compare per tick, so this stays cheap).
+    };
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'fetch');
+    const installable = !(descriptor && !descriptor.set && !descriptor.writable);
+    if (installable) {
+      window.fetch = FetchProxy.create(callback);
+    }
+    // Watchdog, always on — it covers two bypass shapes:
+    // 1. an app-injected APM SDK reassigns window.fetch after us with a wrapper
+    //    that calls its privately saved native fetch — requests keep working
+    //    but silently bypass our capture;
+    // 2. window.fetch is getter-only at init time (install skipped above) and
+    //    only becomes writable later — skipping the watchdog here would leave
+    //    us permanently unhooked.
+    // Either way the tick wraps the CURRENT window.fetch (one reference compare
+    // per tick, so this stays cheap).
     this.fetchWatchdog = setInterval(() => {
-      FetchProxy.ensureHooked();
+      FetchProxy.ensureHooked(callback);
     }, 2000);
   }
 
