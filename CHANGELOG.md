@@ -1,5 +1,20 @@
 English | [简体中文](./CHANGELOG_CN.md)
 
+> The `mcp` branch is the fork behind whistle-vconsole. Version 3.16.0 here also carries what upstream does not have — the MCP WebSocket bridge (`src/mcp/*`) and the binary frame codec (`src/network/wsCodec.ts`): logs / network / WebSocket streaming to a debug server plus agent commands (eval, dom, storage, page_info, screenshot, replay). That work shipped under upstream's version number, so it had no entry of its own.
+
+## 3.16.3 (2026-10-07)
+
+- `Fix(Network)` Start the `window.fetch` watchdog unconditionally. `mockFetch` used to return before installing it when `window.fetch` was a getter-only property at init time, so on those pages a `fetch` that became writable later left the probe permanently unhooked. The watchdog now runs every tick and re-checks the descriptor, installing as soon as assignment is possible.
+- `Feat(MCP)` Protocol `ToolApiName` gains `get_vue_tree`, `get_vue_state` and `set_vue_state`. Type-only — the wire format and the probe's behaviour are unchanged.
+
+## 3.16.2 (2026-10-07)
+
+- `Fix(Network)` `FetchProxy.ensureHooked` built the replacement wrapper and reported success, but never assigned it to `window.fetch` — the watchdog silently did nothing whenever a third-party wrapper landed after our first install.
+
+## 3.16.1 (2026-10-07)
+
+- `Fix(Network)` Re-hook `window.fetch` when an in-app SDK replaces it after we did. Such a wrapper calls the native `fetch` it saved privately, so requests kept working while our capture was bypassed. A 2s watchdog compares `window.fetch` against the proxy we last installed and re-wraps the **current** `window.fetch` when it moved, which keeps the third-party wrapper in the call chain; `unMock` clears the watchdog and still restores the original `fetch`.
+
 ## 3.16.0 (2026-??-??)
 
 - `Feat(Log)` Add support for `console.timeLog()`. (issue #681, PR #684)

@@ -1,5 +1,20 @@
 [English](./CHANGELOG.md) | 简体中文
 
+> `mcp` 分支是 whistle-vconsole 用的 fork。这里的 3.16.0 除了上游内容，还带着上游没有的东西——MCP WebSocket 桥（`src/mcp/*`）与二进制帧编码（`src/network/wsCodec.ts`）：把日志 / 网络 / WebSocket 数据推给调试服务，并接收 agent 命令（eval、dom、storage、page_info、screenshot、replay）。这部分当时是顺着 upstream 的版本号发出去的，所以没有独立条目。
+
+## 3.16.3 (2026-10-07)
+
+- `Fix(Network)` 无条件启动 `window.fetch` 看门狗。此前如果初始化时 `window.fetch` 是个只有 getter 的属性，`mockFetch` 会在装看门狗之前就返回；这类页面后来 `fetch` 变得可写了，探针却永远挂不上。现在看门狗每轮都会重新检查属性描述符，一能赋值就立刻补装。
+- `Feat(MCP)` 协议 `ToolApiName` 增加 `get_vue_tree`、`get_vue_state`、`set_vue_state`。只是类型层面的同步，线上消息与探针行为都不变。
+
+## 3.16.2 (2026-10-07)
+
+- `Fix(Network)` `FetchProxy.ensureHooked` 会构造替换用的包装并返回"已重装"，却没把它赋给 `window.fetch`——只要第三方包装是在我们首次安装之后落下来的，看门狗就一直在空转。
+
+## 3.16.1 (2026-10-07)
+
+- `Fix(Network)` 第三方 SDK 在我们之后替换 `window.fetch` 时重新 hook。这类包装调用的是它自己存下的原生 `fetch`，请求照常发但我们的截获被绕开。现在有一条 2 秒看门狗，把当前 `window.fetch` 和我们最后一次装上的代理做对比，发现被换过就包在**当前**那个外面再装一层，第三方包装仍留在调用链里；`unMock` 会清掉看门狗并照常还原原始 `fetch`。
+
 ## 3.16.0 (2026-??-??)
 
 - `Feat(Log)` 新增对 `console.timeLog()` 的支持。(issue #681, PR #684)
