@@ -1,6 +1,6 @@
 {
   "name": "@bobjoy/vconsole",
-  "version": "3.16.1",
+  "version": "3.16.2",
   "description": "Fork of Tencent vConsole (dev branch, 3.16.0-alpha) with a WebSocket bridge that streams logs/network data to an MCP server for AI agents. Upstream: https://github.com/Tencent/vConsole",
   "files": [
     "dist/*",
