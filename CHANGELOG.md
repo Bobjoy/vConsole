@@ -2,6 +2,10 @@ English | [简体中文](./CHANGELOG_CN.md)
 
 > The `mcp` branch is the fork behind whistle-vconsole. Version 3.16.0 here also carries what upstream does not have — the MCP WebSocket bridge (`src/mcp/*`) and the binary frame codec (`src/network/wsCodec.ts`): logs / network / WebSocket streaming to a debug server plus agent commands (eval, dom, storage, page_info, screenshot, replay). That work shipped under upstream's version number, so it had no entry of its own.
 
+## 3.16.4 (2026-10-07)
+
+- `Fix(MCP)` Screenshot works on pages that own an AMD loader. The probe loaded html2canvas with a `<script>` tag and then required `window.html2canvas`; on those pages the UMD registers with the page's loader instead, so the tag fired `load` and the global never appeared (`html2canvas loaded but global is missing`). When that happens the same URL is now re-read with `fetch` and executed through `new Function('define', 'module', 'exports', src)`: the shadowed parameters leave only the AMD branch open, and our own `define` collects the factory. No page global is touched, and the captured build is reused for later screenshots instead of re-downloading 200KB each time. The local (hub) source now needs `Access-Control-Allow-Origin: *` on that file — whistle-vconsole 0.3.5 sends it; the public CDNs already did.
+
 ## 3.16.3 (2026-10-07)
 
 - `Fix(Network)` Start the `window.fetch` watchdog unconditionally. `mockFetch` used to return before installing it when `window.fetch` was a getter-only property at init time, so on those pages a `fetch` that became writable later left the probe permanently unhooked. The watchdog now runs every tick and re-checks the descriptor, installing as soon as assignment is possible.

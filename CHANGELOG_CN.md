@@ -2,6 +2,10 @@
 
 > `mcp` 分支是 whistle-vconsole 用的 fork。这里的 3.16.0 除了上游内容，还带着上游没有的东西——MCP WebSocket 桥（`src/mcp/*`）与二进制帧编码（`src/network/wsCodec.ts`）：把日志 / 网络 / WebSocket 数据推给调试服务，并接收 agent 命令（eval、dom、storage、page_info、screenshot、replay）。这部分当时是顺着 upstream 的版本号发出去的，所以没有独立条目。
 
+## 3.16.4 (2026-10-07)
+
+- `Fix(MCP)` 页面自带 AMD loader 时截图不再失败。探针原先用 `<script>` 标签加载 html2canvas，然后要求 `window.html2canvas` 存在；这类页面上 UMD 会去注册页面自己的 loader，标签照样触发 `load`，全局却始终不出现（`html2canvas loaded but global is missing`）。现在这种情况会用 `fetch` 重新读同一个 URL，再通过 `new Function('define', 'module', 'exports', src)` 执行：被遮蔽的三个参数只留下 AMD 一条分支，由我们自己的 `define` 接住 factory。全程不写页面任何全局，抓到的构建会被后续截图复用，不必每次重下 200KB。本地（hub）那条源需要该文件带 `Access-Control-Allow-Origin: *`——whistle-vconsole 0.3.5 已经开始返回，公共 CDN 本来就有。
+
 ## 3.16.3 (2026-10-07)
 
 - `Fix(Network)` 无条件启动 `window.fetch` 看门狗。此前如果初始化时 `window.fetch` 是个只有 getter 的属性，`mockFetch` 会在装看门狗之前就返回；这类页面后来 `fetch` 变得可写了，探针却永远挂不上。现在看门狗每轮都会重新检查属性描述符，一能赋值就立刻补装。
