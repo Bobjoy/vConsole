@@ -23,6 +23,7 @@ export class VConsoleNetworkModel extends VConsoleModel {
   public ignoreUrlRegExp: RegExp = undefined;
   protected itemCounter: number = 0;
   private resourceProxy: ResourceProxy;
+  private fetchWatchdog: ReturnType<typeof setInterval> = null;
 
   constructor() {
     super();
@@ -35,6 +36,10 @@ export class VConsoleNetworkModel extends VConsoleModel {
 
   public unMock() {
     // recover original functions
+    if (this.fetchWatchdog) {
+      clearInterval(this.fetchWatchdog);
+      this.fetchWatchdog = null;
+    }
     if (window.hasOwnProperty('XMLHttpRequest')) {
       window.XMLHttpRequest = XHRProxy.origXMLHttpRequest;
     }
@@ -117,6 +122,13 @@ export class VConsoleNetworkModel extends VConsoleModel {
     window.fetch = FetchProxy.create((item: VConsoleNetworkRequestItem) => {
       this.updateRequest(item.id, item);
     });
+    // an app-injected APM SDK can reassign window.fetch after us with a wrapper
+    // that calls its privately saved native fetch — requests keep working but
+    // silently bypass our capture. Watch for that and re-wrap the current
+    // window.fetch (one reference compare per tick, so this stays cheap).
+    this.fetchWatchdog = setInterval(() => {
+      FetchProxy.ensureHooked();
+    }, 2000);
   }
 
   /**

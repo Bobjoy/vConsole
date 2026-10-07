@@ -281,7 +281,35 @@ export class FetchProxyHandler<T extends typeof fetch> implements ProxyHandler<T
 export class FetchProxy {
   public static origFetch = fetch;
 
-  public static create(onUpdateCallback: IOnUpdateCallback) {
-    return new Proxy(fetch, new FetchProxyHandler(onUpdateCallback));
+  /** the proxy we last assigned to window.fetch, used by the re-hook watchdog */
+  protected static activeProxy: typeof fetch = null;
+  protected static activeCallback: IOnUpdateCallback = null;
+
+  public static create(onUpdateCallback: IOnUpdateCallback, target?: typeof fetch) {
+    const proxy = new Proxy(target ?? fetch, new FetchProxyHandler(onUpdateCallback));
+    FetchProxy.activeProxy = proxy;
+    FetchProxy.activeCallback = onUpdateCallback;
+    return proxy;
+  }
+
+  /**
+   * Re-install our hook if a third party reassigned `window.fetch` after us.
+   * App-injected APM SDKs do exactly that, and their wrapper usually calls a
+   * privately saved native fetch, which silently bypasses our capture while
+   * the requests keep working. Wrapping the CURRENT `window.fetch` keeps their
+   * wrapper in the call chain, so both sides keep working. Returns true when
+   * a re-hook was needed.
+   */
+  public static ensureHooked(): boolean {
+    if (!FetchProxy.activeCallback) { return false; }
+    if (window.fetch === FetchProxy.activeProxy) { return false; }
+    if (!window.hasOwnProperty('fetch')) { return false; }
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'fetch');
+    if (descriptor && !descriptor.set && !descriptor.writable) {
+      // same guard as the first install: a getter-only fetch cannot be reassigned
+      return false;
+    }
+    FetchProxy.create(FetchProxy.activeCallback, window.fetch);
+    return true;
   }
 }
