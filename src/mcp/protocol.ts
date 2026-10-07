@@ -5,10 +5,10 @@
  * Transport: JSON text frames over a single WebSocket connection.
  * The probe is the connecting side; the server listens.
  *
- * This file exists twice, on purpose: the node side keeps it at
- * packages/protocol/src/protocol.ts, the probe side at
- * src/mcp/protocol.ts. Nothing checks them against each other, so
- * changing the protocol means editing BOTH in the same round (ADR-0007).
+ * This file exists twice, on purpose: the node side keeps it as the whistle
+ * plugin's src/protocol.ts, the probe side as its own src/mcp/protocol.ts.
+ * Nothing checks them against each other, so changing the protocol means
+ * editing BOTH in the same round (ADR-0007).
  * PROTOCOL_VERSION is the only handshake between the two copies, and a hub
  * that sees a different number warns instead of disconnecting (ADR-0008).
  */
