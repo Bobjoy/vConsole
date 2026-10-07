@@ -235,38 +235,75 @@ const HTML2CANVAS_LOAD_TIMEOUT_MS = 10000;
 const MAX_IMAGE_BASE64_CHARS = 2 * 1024 * 1024; // ~1.5MB binary
 const MAX_CAPTURE_PIXELS = 3.5 * 1024 * 1024;
 
-function loadScript(w: any, src: string): Promise<void> {
+/** @returns false when the file loaded but no global appeared (a page loader captured it) */
+function loadScript(w: any, src: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     let timer: ReturnType<typeof setTimeout>;
     const settle = (err?: Error) => {
       clearTimeout(timer);
       script.remove();
-      if (err) { reject(err); } else { resolve(); }
+      if (err) { reject(err); } else { resolve(typeof w.html2canvas === 'function'); }
     };
     // a hung download may never fire onerror — cap each source
     timer = setTimeout(() => settle(new Error(`timeout loading ${src}`)), HTML2CANVAS_LOAD_TIMEOUT_MS);
-    script.onload = () => {
-      if (typeof w.html2canvas === 'function') { settle(); }
-      else { settle(new Error('html2canvas loaded but global is missing')); }
-    };
+    script.onload = () => settle();
     script.onerror = () => settle(new Error(`failed to load ${src}`));
     script.src = src;
     document.head.appendChild(script);
   });
 }
 
+/**
+ * html2canvas is UMD, and the UMD tries CJS first, then AMD, then the global. A
+ * page that owns a module loader therefore swallows the file: onload fires and
+ * `window.html2canvas` stays undefined. Re-executing the same text with
+ * define/module/exports declared as (shadowing) parameters forces it down the
+ * AMD branch, where our own `define` collects the factory. Nothing is written
+ * to the page, and the execute is synchronous, so no loader state is left behind.
+ */
+async function loadWithoutPageLoader(src: string): Promise<any> {
+  const text = await Promise.race([
+    fetch(src).then((res) => {
+      if (!res.ok) { throw new Error(`http ${res.status} for ${src}`); }
+      return res.text();
+    }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`timeout fetching ${src}`)), HTML2CANVAS_LOAD_TIMEOUT_MS);
+    }),
+  ]);
+  let factory: any;
+  const define: any = (deps: unknown, fn?: unknown) => {
+    factory = typeof fn === 'function' ? fn : deps;
+  };
+  define.amd = {};
+  new Function('define', 'module', 'exports', text)(define, undefined, undefined);
+  return typeof factory === 'function' ? factory() : undefined;
+}
+
+// The build captured from a page that owns a module loader lives on the page, so
+// its lifetime matches the bundle's and the 200KB fetch is paid once per session.
+const CAPTURED_KEY = '__vcHtml2Canvas';
+
 async function loadHtml2Canvas(assetUrl?: string): Promise<any> {
   const w = <any>window;
   if (typeof w.html2canvas === 'function') {
     return w.html2canvas;
   }
+  if (typeof w[CAPTURED_KEY] === 'function') {
+    return w[CAPTURED_KEY];
+  }
   const sources = assetUrl ? [assetUrl, ...HTML2CANVAS_CDNS] : HTML2CANVAS_CDNS;
   let lastErr: unknown;
   for (const src of sources) {
     try {
-      await loadScript(w, src);
-      return w.html2canvas;
+      if (await loadScript(w, src)) { return w.html2canvas; }
+      const captured = await loadWithoutPageLoader(src);
+      if (captured) {
+        w[CAPTURED_KEY] = captured;
+        return captured;
+      }
+      lastErr = new Error(`html2canvas loaded but global is missing (${src})`);
     } catch (e) {
       lastErr = e;
     }

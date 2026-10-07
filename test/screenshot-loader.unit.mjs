@@ -36,17 +36,36 @@ const tmpOut = path.join(os.tmpdir(), `shot-loader-${process.pid}.cjs`);
 await build({ entryPoints: [source], bundle: true, platform: 'node', format: 'cjs', outfile: tmpOut, logLevel: 'error' });
 
 /**
- * @param fail srcs that fire onerror instead of onload
- * @returns { requested: string[] } plus the stubbed window for assertions
+ * Same branch order as the real html2canvas 1.4.1 UMD header: CJS, then AMD,
+ * then global. The AMD branch hands the factory to `define` and never creates a
+ * global, which is the failure this suite exercises.
  */
-function installDom(fail = () => false) {
+const UMD_TEXT = '!function(A,e){"object"==typeof exports&&"undefined"!=typeof module'
+  + '?module.exports=e():"function"==typeof define&&define.amd?define(e)'
+  + ':(A="undefined"!=typeof globalThis?globalThis:A||self).html2canvas=e()}'
+  + '(this,function(){return function(){return Promise.resolve(__CANVAS__)}})';
+
+/**
+ * @param fail srcs that fire onerror instead of onload
+ * @param opts.amdPage srcs whose file loads but stays captured by the page loader
+ * @param opts.fetchFails srcs the fallback fetch cannot read
+ * @returns { requested: string[], fetched: string[] } plus the stubbed window for assertions
+ */
+function installDom(fail = () => false, { amdPage = () => false, fetchFails = () => false } = {}) {
   const requested = [];
+  const fetched = [];
   const canvas = { width: 800, height: 600, toDataURL: () => 'data:image/png;base64,iVBORw0KGg' };
+  globalThis.__CANVAS__ = canvas;
   globalThis.window = {
     innerWidth: 800,
     innerHeight: 600,
     devicePixelRatio: 1,
     html2canvas: undefined,
+  };
+  globalThis.fetch = (src) => {
+    fetched.push(src);
+    if (fetchFails(src)) { return Promise.reject(new Error(`http 404 for ${src}`)); }
+    return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(UMD_TEXT) });
   };
   globalThis.document = {
     documentElement: { scrollWidth: 800, scrollHeight: 600 },
@@ -60,50 +79,98 @@ function installDom(fail = () => false) {
           if (fail(src)) {
             script.onerror();
           } else {
-            globalThis.window.html2canvas = () => Promise.resolve(canvas);
+            if (!amdPage(src)) { globalThis.window.html2canvas = () => Promise.resolve(canvas); }
             script.onload();
           }
         }, 0);
       },
     },
   };
-  return requested;
+  return { requested, fetched };
 }
 
 const { screenshot } = require(tmpOut);
 
 try {
   // local source first
-  let requested = installDom();
-  const shot = await screenshot({ assetUrl: LOCAL });
-  check('vendored url is fetched before any CDN', requested[0] === LOCAL, JSON.stringify(requested));
-  check('only the local source is used when it works', requested.length === 1, JSON.stringify(requested));
-  check('screenshot still returns the image', shot.format === 'png' && shot.dataBase64.startsWith('iVBOR'), JSON.stringify(shot).slice(0, 80));
+  {
+    const { requested } = installDom();
+    const shot = await screenshot({ assetUrl: LOCAL });
+    check('vendored url is fetched before any CDN', requested[0] === LOCAL, JSON.stringify(requested));
+    check('only the local source is used when it works', requested.length === 1, JSON.stringify(requested));
+    check('screenshot still returns the image', shot.format === 'png' && shot.dataBase64.startsWith('iVBOR'), JSON.stringify(shot).slice(0, 80));
+  }
 
   // local miss -> CDN chain takes over, biggest CDN first
-  requested = installDom((src) => src === LOCAL);
-  await screenshot({ assetUrl: LOCAL });
-  check('a local miss falls through to the CDNs',
-    requested.length === 2 && requested[1].startsWith('https://') && requested[1].includes('html2canvas@1.4.1'),
-    JSON.stringify(requested));
+  {
+    const { requested } = installDom((src) => src === LOCAL);
+    await screenshot({ assetUrl: LOCAL });
+    check('a local miss falls through to the CDNs',
+      requested.length === 2 && requested[1].startsWith('https://') && requested[1].includes('html2canvas@1.4.1'),
+      JSON.stringify(requested));
+  }
 
   // no local source configured (older server / manual init)
-  requested = installDom();
-  await screenshot({});
-  check('without an asset url the chain is CDN only',
-    requested.length === 1 && requested[0].startsWith('https://'), JSON.stringify(requested));
+  {
+    const { requested } = installDom();
+    await screenshot({});
+    check('without an asset url the chain is CDN only',
+      requested.length === 1 && requested[0].startsWith('https://'), JSON.stringify(requested));
+  }
+
+  // the page has its own AMD loader: the file downloads, onload fires, and the
+  // UMD registers with that loader instead of creating a global
+  {
+    const { requested, fetched } = installDom(() => false, { amdPage: (src) => src === LOCAL });
+    const shot = await screenshot({ assetUrl: LOCAL });
+    check('a page with an AMD loader still gets a usable screenshot',
+      shot.format === 'png' && shot.dataBase64.startsWith('iVBOR'), JSON.stringify(shot).slice(0, 80));
+    check('the fallback re-reads the url whose script tag produced no global',
+      fetched.length === 1 && fetched[0] === LOCAL, JSON.stringify(fetched));
+    check('the fallback does not append a second script tag', requested.length === 1, JSON.stringify(requested));
+    check('the fallback installs nothing on the page',
+      globalThis.window.html2canvas === undefined && globalThis.html2canvas === undefined,
+      String(globalThis.window.html2canvas));
+  }
+
+  // same page, but the fallback cannot read the file -> the chain keeps going
+  {
+    const { requested, fetched } = installDom(() => false, {
+      amdPage: (src) => src === LOCAL,
+      fetchFails: (src) => src === LOCAL,
+    });
+    const shot = await screenshot({ assetUrl: LOCAL });
+    check('a failed fallback read falls through to the CDNs',
+      requested.length === 2 && requested[1].startsWith('https://') && fetched.length === 1,
+      JSON.stringify({ requested, fetched }));
+    check('the CDN still yields the image', shot.width === 800, JSON.stringify(shot).slice(0, 60));
+  }
+
+  // the fallback is paid once per page, not once per screenshot
+  {
+    const { requested, fetched } = installDom(() => false, { amdPage: () => true });
+    const first = await screenshot({ assetUrl: LOCAL });
+    const second = await screenshot({ assetUrl: LOCAL });
+    check('both screenshots succeed on a loader page',
+      first.format === 'png' && second.format === 'png' && second.width === 800,
+      JSON.stringify({ first: first.width, second: second.width }));
+    check('the second screenshot reuses the captured build',
+      requested.length === 1 && fetched.length === 1, JSON.stringify({ requested, fetched }));
+  }
 
   // everything down
-  requested = installDom(() => true);
-  let err = null;
-  try {
-    await screenshot({ assetUrl: LOCAL });
-  } catch (e) {
-    err = e;
+  {
+    const { requested } = installDom(() => true);
+    let err = null;
+    try {
+      await screenshot({ assetUrl: LOCAL });
+    } catch (e) {
+      err = e;
+    }
+    check('all four sources are attempted before giving up', requested.length === 4, JSON.stringify(requested));
+    check('the failure names how many sources it tried',
+      !!err && /all 4 sources/.test(err.message), String(err && err.message));
   }
-  check('all four sources are attempted before giving up', requested.length === 4, JSON.stringify(requested));
-  check('the failure names how many sources it tried',
-    !!err && /all 4 sources/.test(err.message), String(err && err.message));
 } finally {
   fs.rmSync(tmpOut, { force: true });
 }
