@@ -222,7 +222,8 @@ export interface PongMsg {
 export type ToolApiName =
   | 'list_sessions' | 'select_session' | 'get_logs' | 'wait_for'
   | 'get_network' | 'ws_frames' | 'eval_js' | 'get_dom' | 'get_storage' | 'set_storage'
-  | 'del_storage' | 'get_page_info' | 'screenshot' | 'replay_request';
+  | 'del_storage' | 'get_page_info' | 'screenshot' | 'replay_request'
+  | 'get_vue_tree' | 'get_vue_state' | 'set_vue_state';
 
 export interface ApiMsg {
   type: 'api';
