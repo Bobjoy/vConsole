@@ -283,33 +283,31 @@ export class FetchProxy {
 
   /** the proxy we last assigned to window.fetch, used by the re-hook watchdog */
   protected static activeProxy: typeof fetch = null;
-  protected static activeCallback: IOnUpdateCallback = null;
 
   public static create(onUpdateCallback: IOnUpdateCallback, target?: typeof fetch) {
     const proxy = new Proxy(target ?? fetch, new FetchProxyHandler(onUpdateCallback));
     FetchProxy.activeProxy = proxy;
-    FetchProxy.activeCallback = onUpdateCallback;
     return proxy;
   }
 
   /**
-   * Re-install our hook if a third party reassigned `window.fetch` after us.
-   * App-injected APM SDKs do exactly that, and their wrapper usually calls a
-   * privately saved native fetch, which silently bypasses our capture while
-   * the requests keep working. Wrapping the CURRENT `window.fetch` keeps their
-   * wrapper in the call chain, so both sides keep working. Returns true when
-   * a re-hook was needed.
+   * Install our hook if `window.fetch` is not already ours. Runs on a watchdog
+   * (see VConsoleNetworkModel.mockFetch) and covers two bypass shapes: a third
+   * party reassigning window.fetch AFTER us with a wrapper that calls its
+   * privately saved native fetch, and a getter-only window.fetch at init time
+   * that becomes writable later. Wrapping the CURRENT window.fetch keeps the
+   * third-party wrapper in the call chain, so both sides keep working. Returns
+   * true when a (re-)hook was installed.
    */
-  public static ensureHooked(): boolean {
-    if (!FetchProxy.activeCallback) { return false; }
-    if (window.fetch === FetchProxy.activeProxy) { return false; }
+  public static ensureHooked(onUpdateCallback: IOnUpdateCallback): boolean {
     if (!window.hasOwnProperty('fetch')) { return false; }
+    if (window.fetch === FetchProxy.activeProxy) { return false; }
     const descriptor = Object.getOwnPropertyDescriptor(window, 'fetch');
     if (descriptor && !descriptor.set && !descriptor.writable) {
-      // same guard as the first install: a getter-only fetch cannot be reassigned
+      // a getter-only fetch cannot be reassigned — try again on the next tick
       return false;
     }
-    FetchProxy.create(FetchProxy.activeCallback, window.fetch);
+    window.fetch = FetchProxy.create(onUpdateCallback, window.fetch);
     return true;
   }
 }
